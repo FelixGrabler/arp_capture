@@ -1,0 +1,9 @@
+version: '3'
+services:
+  arp-spy:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./pcap_files:/app/pcap_files
+      - ./mac.db:/app/mac.db
