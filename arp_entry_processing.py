@@ -5,7 +5,7 @@ from scapy.layers.l2 import Ether
 from datetime import datetime, timedelta
 import pandas as pd
 import logging
-from logging.handlers import RotatingFileHandler
+from logging import RotatingFileHandler
 
 DATABASE = '/etc/arp_capture/mac.db'
 PCAP_DIR = '/etc/arp_capture/pcap_files/'
@@ -64,7 +64,7 @@ def process_pcap_file(filename):
     try:
         packets = rdpcap(filename)
     except Exception as e:
-        logging.error(f"Failed to read pcap file {filename}: {e}")
+        logging.error("Failed to read pcap file {}: {}".format(filename, e))
         return
 
     mac_addresses = set(packet[Ether].src for packet in packets if Ether in packet)
@@ -80,9 +80,9 @@ def process_pcap_file(filename):
                     continue  # Ignore duplicates
     try:
         os.remove(filename)
-        logging.info(f"Deleted processed file: {filename}. Processed MAC addresses: {len(mac_addresses)}.")
+        logging.info("Deleted processed file: {}. Processed MAC addresses: {}.".format(filename, len(mac_addresses)))
     except Exception as e:
-        logging.error(f"Failed to delete processed file {filename}: {e}")
+        logging.error("Failed to delete processed file {}: {}".format(filename, e))
 
 
 
