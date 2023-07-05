@@ -22,7 +22,7 @@ log_file = os.path.join(LOG_DIR, "arp_capture.log")
 
 # Use a rotating file handler to limit file size and number of backup log files
 handler = RotatingFileHandler(
-    log_file, mode="a", maxBytes=100 * 1024, backupCount=2, encoding=None, delay=0
+    log_file, mode="a", maxBytes=33 * 1024, backupCount=2, encoding=None, delay=0
 )
 handler.setFormatter(log_formatter)
 handler.setLevel(logging.INFO)
