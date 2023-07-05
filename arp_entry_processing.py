@@ -1,6 +1,7 @@
 import os
 import sqlite3
-from scapy.all import ARP, rdpcap
+from scapy.all import rdpcap
+from scapy.layers.l2 import Ether
 from datetime import datetime, timedelta
 import pandas as pd
 import logging
@@ -66,11 +67,7 @@ def process_pcap_file(filename):
         logging.error(f"Failed to read pcap file {filename}: {e}")
         return
 
-    mac_addresses = set(
-        packet[ARP].hwsrc
-        for packet in packets
-        if ARP in packet and (packet[ARP].op in [1, 2])
-    )
+    mac_addresses = set(packet[Ether].src for packet in packets if Ether in packet)
 
     if mac_addresses:
         timestamp = round_up_to_nearest_half_hour(timestamp)
@@ -78,19 +75,15 @@ def process_pcap_file(filename):
             cursor = conn.cursor()
             for address in mac_addresses:
                 try:
-                    cursor.execute(
-                        "INSERT OR IGNORE INTO mac_addresses (timestamp, address) VALUES (?, ?)",
-                        (str(timestamp), address),
-                    )
+                    cursor.execute("INSERT OR IGNORE INTO mac_addresses (timestamp, address) VALUES (?, ?)", (str(timestamp), address))
                 except sqlite3.IntegrityError:
                     continue  # Ignore duplicates
     try:
         os.remove(filename)
-        logging.info(
-            f"Deleted processed file: {filename}. Processed MAC addresses: {len(mac_addresses)}"
-        )
+        logging.info(f"Deleted processed file: {filename}. Processed MAC addresses: {len(mac_addresses)}.")
     except Exception as e:
         logging.error(f"Failed to delete processed file {filename}: {e}")
+
 
 
 def fill_gaps():
