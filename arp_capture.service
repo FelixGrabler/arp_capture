@@ -3,7 +3,7 @@ Description=ARP packet capture service
 After=network.target
 
 [Service]
-ExecStart=/path/to/your/arp_capture.sh
+ExecStart=/etc/arp_capture/arp_capture.sh
 Restart=always
 User=root
 Group=root
