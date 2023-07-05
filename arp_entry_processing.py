@@ -33,7 +33,7 @@ def process_pcap_file(filename):
     try:
         packets = rdpcap(filename)
     except Exception as e:
-        print(f"ERROR: Failed to read pcap file {filename}: {e}")
+        print("ERROR: Failed to read pcap file {}: {}".format(filename, e))
         return
 
     mac_addresses = set(packet[ARP].hwsrc for packet in packets if ARP in packet and packet[ARP].op == 2)
@@ -49,9 +49,9 @@ def process_pcap_file(filename):
                     continue  # Ignore duplicates
     try:
         os.remove(filename)
-        print(f"Deleted processed file: {filename}")
+        print("Deleted processed file: {}".format(filename))
     except Exception as e:
-        print(f"ERROR: Failed to delete processed file {filename}: {e}")
+        print("ERROR: Failed to delete processed file {}: {}".format(filename, e))
 
 def fill_gaps():
     with sqlite3.connect(DATABASE) as conn:
@@ -69,9 +69,7 @@ def fill_gaps():
             if last_row is None:
                 new_rows.append(row)
             elif (
-                timedelta(minutes=30)
-                < row["timestamp"] - last_row["timestamp"]
-                <= timedelta(hours=2)
+                30*60 <= (row["timestamp"] - last_row["timestamp"]).total_seconds() <= 2*60*60
             ):
                 fill_timestamps = pd.date_range(
                     start=last_row["timestamp"] + timedelta(minutes=30),
