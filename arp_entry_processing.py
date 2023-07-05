@@ -5,23 +5,25 @@ from scapy.layers.l2 import Ether
 from datetime import datetime, timedelta
 import pandas as pd
 import logging
-from logging import RotatingFileHandler
+from logging.handlers import RotatingFileHandler
 
-DATABASE = '/etc/arp_capture/mac.db'
-PCAP_DIR = '/etc/arp_capture/pcap_files/'
-LOG_DIR = '/etc/arp_capture/logs'
+DATABASE = "/etc/arp_capture/mac.db"
+PCAP_DIR = "/etc/arp_capture/pcap_files/"
+LOG_DIR = "/etc/arp_capture/logs"
 
 # Check if the log directory exists, if not, create it
 if not os.path.exists(LOG_DIR):
     os.makedirs(LOG_DIR)
 
 # Setting up logging
-log_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+log_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
 
-log_file = os.path.join(LOG_DIR, 'arp_capture.log')
+log_file = os.path.join(LOG_DIR, "arp_capture.log")
 
 # Use a rotating file handler to limit file size and number of backup log files
-handler = RotatingFileHandler(log_file, mode='a', maxBytes=100*1024, backupCount=2, encoding=None, delay=0)
+handler = RotatingFileHandler(
+    log_file, mode="a", maxBytes=100 * 1024, backupCount=2, encoding=None, delay=0
+)
 handler.setFormatter(log_formatter)
 handler.setLevel(logging.INFO)
 
@@ -75,15 +77,21 @@ def process_pcap_file(filename):
             cursor = conn.cursor()
             for address in mac_addresses:
                 try:
-                    cursor.execute("INSERT OR IGNORE INTO mac_addresses (timestamp, address) VALUES (?, ?)", (str(timestamp), address))
+                    cursor.execute(
+                        "INSERT OR IGNORE INTO mac_addresses (timestamp, address) VALUES (?, ?)",
+                        (str(timestamp), address),
+                    )
                 except sqlite3.IntegrityError:
                     continue  # Ignore duplicates
     try:
         os.remove(filename)
-        logging.info("Deleted processed file: {}. Processed MAC addresses: {}.".format(filename, len(mac_addresses)))
+        logging.info(
+            "Deleted processed file: {}. Processed MAC addresses: {}.".format(
+                filename, len(mac_addresses)
+            )
+        )
     except Exception as e:
         logging.error("Failed to delete processed file {}: {}".format(filename, e))
-
 
 
 def fill_gaps():
