@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 from mac_vendor_lookup import MacLookup
 
-DATABASE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mac.db")
+DATABASE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mac_summary.db")
 MAC_LOOKUP = MacLookup()
 
 
@@ -100,5 +100,64 @@ def analyze_db():
     plt.show()  # Show both plots
 
 
+def merge_databases(src_db, dst_db, table):
+    # Check if the source db exists
+    if not os.path.isfile(src_db):
+        print(f"{src_db} does not exist, skipping merge.")
+        return
+
+    # Create the destination database if it does not exist,
+    # and establish a connection to it.
+    dst_conn = sqlite3.connect(dst_db)
+    dst_cur = dst_conn.cursor()
+
+    # Check if the table exists in the destination db.
+    # If not, create it.
+    dst_cur.execute(
+        f"""
+        CREATE TABLE IF NOT EXISTS {table} (
+            timestamp TEXT,
+            address TEXT,
+            PRIMARY KEY (timestamp, address)
+        )
+    """
+    )
+
+    # Establish a connection to the source db.
+    with sqlite3.connect(src_db) as src_conn:
+        # Create a cursor for source db
+        src_cur = src_conn.cursor()
+
+        # Fetch all records from the source db
+        src_cur.execute(f"SELECT * FROM {table}")
+        rows = src_cur.fetchall()
+
+        # Add rows to the destination db
+        for row in rows:
+            # Use parameterized query to prevent SQL injection
+            try:
+                dst_cur.execute(f"INSERT INTO {table} VALUES (?, ?)", row)
+            except sqlite3.IntegrityError:
+                # This error occurs if a record with the same primary key already exists.
+                # Since we are merging, we can simply ignore this error and move on.
+                pass
+
+    # Commit changes to the destination db
+    dst_conn.commit()
+    dst_conn.close()
+
+    # Ensure we are not deleting a file in use
+    if src_conn.in_transaction:
+        src_conn.commit()
+        src_conn.close()
+
+    # After merging, delete mac.db
+    try:
+        os.remove(src_db)
+    except:
+        print("mac.db in use")
+
+
 if __name__ == "__main__":
+    merge_databases("mac.db", "mac_summary.db", "mac_addresses")
     analyze_db()
