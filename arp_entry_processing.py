@@ -8,8 +8,11 @@ import logging
 from logging.handlers import RotatingFileHandler
 
 DATABASE = "/etc/arp_capture/mac.db"
+COUNT_DATABASE = "/etc/arp_capture/count.db"
 PCAP_DIR = "/etc/arp_capture/pcap_files/"
 LOG_DIR = "/etc/arp_capture/logs"
+
+debug = False  # Set this to True to not delete old mac data and to disable count feature
 
 # Check if the log directory exists, if not, create it
 if not os.path.exists(LOG_DIR):
@@ -45,6 +48,17 @@ def initialize_db():
         """
         )
 
+    with sqlite3.connect(COUNT_DATABASE) as conn:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS mac_counts (
+                timestamp TEXT,
+                count INTEGER,
+                PRIMARY KEY (timestamp)
+            )
+        """
+        )
+
 
 def round_up_to_nearest_half_hour(dt):
     if dt.minute % 30 or dt.second:
@@ -75,14 +89,12 @@ def process_pcap_file(filename):
         timestamp = round_up_to_nearest_half_hour(timestamp)
         with sqlite3.connect(DATABASE) as conn:
             cursor = conn.cursor()
-            for address in mac_addresses:
-                try:
-                    cursor.execute(
-                        "INSERT OR IGNORE INTO mac_addresses (timestamp, address) VALUES (?, ?)",
-                        (str(timestamp), address),
-                    )
-                except sqlite3.IntegrityError:
-                    continue  # Ignore duplicates
+            # Batch insert all MAC addresses
+            cursor.executemany(
+                "INSERT OR IGNORE INTO mac_addresses (timestamp, address) VALUES (?, ?)",
+                [(str(timestamp), address) for address in mac_addresses],
+            )
+
     try:
         os.remove(filename)
         logging.info(
@@ -96,50 +108,60 @@ def process_pcap_file(filename):
 
 def fill_gaps():
     with sqlite3.connect(DATABASE) as conn:
-        df = pd.read_sql("SELECT * FROM mac_addresses", conn)
-
-    df["timestamp"] = pd.to_datetime(df["timestamp"])
-    df.sort_values(["address", "timestamp"], inplace=True)
-
-    groups = df.groupby("address")
-
-    new_rows = []
-    for name, group in groups:
-        last_row = None
-        for i, row in group.iterrows():
-            if last_row is None:
-                new_rows.append(row)
-            elif (
-                30 * 60
-                <= (row["timestamp"] - last_row["timestamp"]).total_seconds()
-                <= 2 * 60 * 60
-            ):
-                fill_timestamps = pd.date_range(
-                    start=last_row["timestamp"] + timedelta(minutes=30),
-                    end=row["timestamp"] - timedelta(minutes=30),
-                    freq="30T",
+        # Use SQL to fill gaps
+        conn.execute(
+            """
+            INSERT OR IGNORE INTO mac_addresses (timestamp, address)
+            SELECT
+                datetime(
+                    julianday(timestamp) + (30 * 60) / (24 * 60 * 60),
+                    'unixepoch'
+                ),
+                address
+            FROM mac_addresses
+            WHERE
+                EXISTS (
+                    SELECT *
+                    FROM mac_addresses AS later
+                    WHERE
+                        later.address = mac_addresses.address
+                        AND (later.timestamp > mac_addresses.timestamp)
+                        AND (
+                            julianday(later.timestamp)
+                            - julianday(mac_addresses.timestamp)
+                        ) * (24 * 60 * 60) BETWEEN (30 * 60) + 1 AND 2 * 60 * 60
                 )
-                for timestamp in fill_timestamps:
-                    new_row = row.copy()
-                    new_row["timestamp"] = timestamp
-                    new_rows.append(new_row)
-                new_rows.append(row)
-            else:
-                new_rows.append(row)
-            last_row = row
+            """
+        )
 
-    new_df = pd.DataFrame(new_rows)
+
+def count_and_delete_old_data():
+    three_hours_ago = datetime.now() - timedelta(hours=3)
 
     with sqlite3.connect(DATABASE) as conn:
-        cursor = conn.cursor()
-        for _, row in new_df.iterrows():
-            try:
-                cursor.execute(
-                    "INSERT OR IGNORE INTO mac_addresses (timestamp, address) VALUES (?, ?)",
-                    (str(row["timestamp"]), row["address"]),
-                )
-            except sqlite3.IntegrityError:
-                continue  # Ignore duplicates
+        # Count MAC addresses
+        counts = pd.read_sql(
+            """
+            SELECT
+                timestamp,
+                COUNT(address) as count
+            FROM mac_addresses
+            WHERE timestamp < ?
+            GROUP BY timestamp
+            """,
+            conn,
+            params=(str(three_hours_ago),),
+        )
+
+    # Write counts to new database
+    with sqlite3.connect(COUNT_DATABASE) as conn:
+        counts.to_sql("mac_counts", conn, if_exists="append", index=False)
+    
+    with sqlite3.connect(DATABASE) as conn:
+        # Delete old data
+        conn.execute(
+            "DELETE FROM mac_addresses WHERE timestamp < ?", (str(three_hours_ago),)
+        )
 
 
 def process_pcap_files():
@@ -155,9 +177,15 @@ def process_pcap_files():
     for filename in pcap_files:
         process_pcap_file(os.path.join(PCAP_DIR, filename))
 
+
+def main():
+    initialize_db()
+    process_pcap_files()
     fill_gaps()
+
+    if not debug:
+        count_and_delete_old_data()
 
 
 if __name__ == "__main__":
-    initialize_db()
-    process_pcap_files()
+    main()
