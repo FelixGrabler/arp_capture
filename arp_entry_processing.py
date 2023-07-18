@@ -98,7 +98,7 @@ def process_pcap_file(filename):
     try:
         os.remove(filename)
         logging.info(
-            "Deleted processed file: {}. Processed MAC addresses: {}.".format(
+            "{} ({})".format(
                 filename, len(mac_addresses)
             )
         )
