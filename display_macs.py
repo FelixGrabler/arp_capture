@@ -3,6 +3,7 @@ import sqlite3
 from datetime import datetime
 
 import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 import numpy as np
 import pandas as pd
 from mac_vendor_lookup import MacLookup
@@ -37,6 +38,14 @@ def get_presence_matrix(df_sorted):
     return presence_matrix
 
 
+def sample_ticks_and_labels(x_ticks, labels, sample_size):
+    if len(x_ticks) > sample_size:
+        step_size = len(x_ticks) // sample_size
+        x_ticks = x_ticks[::step_size]
+        labels = labels[::step_size]
+    return x_ticks, labels
+
+
 def plot_mac_presence(
     presence_matrix_sorted, sorted_mac_addresses, sorted_vendors, timestamps
 ):
@@ -53,8 +62,13 @@ def plot_mac_presence(
 
     x_ticks = np.arange(len(timestamps))
     formatted_labels = [format_timestamp(timestamp) for timestamp in timestamps]
+    x_ticks, formatted_labels = sample_ticks_and_labels(x_ticks, formatted_labels, 100)
     ax.set_xticks(x_ticks)
     ax.set_xticklabels(formatted_labels, rotation=45, ha="right")
+
+    ax.xaxis.set_major_locator(
+        ticker.MultipleLocator(2)
+    )  # Add grid lines every 2 datasets, i.e., every hour
 
     fig.tight_layout()
     fig.subplots_adjust(left=0.17, bottom=0.1, right=0.99, top=0.975)
@@ -73,8 +87,13 @@ def plot_mac_counts(df_sorted):
 
     x_ticks = np.arange(len(df_grouped.index))
     formatted_labels = [format_timestamp(timestamp) for timestamp in df_grouped.index]
+    x_ticks, formatted_labels = sample_ticks_and_labels(x_ticks, formatted_labels, 100)
     ax.set_xticks(x_ticks)
     ax.set_xticklabels(formatted_labels, rotation=45, ha="right")
+
+    ax.xaxis.set_major_locator(
+        ticker.MultipleLocator(2)
+    )  # Add grid lines every 2 datasets, i.e., every hour
 
     fig.tight_layout()
 
