@@ -12,7 +12,9 @@ COUNT_DATABASE = "/etc/arp_capture/count.db"
 PCAP_DIR = "/etc/arp_capture/pcap_files/"
 LOG_DIR = "/etc/arp_capture/logs"
 
-debug = False  # Set this to True to not delete old mac data and to disable count feature
+debug = (
+    False  # Set this to True to not delete old mac data and to disable count feature
+)
 
 # Check if the log directory exists, if not, create it
 if not os.path.exists(LOG_DIR):
@@ -37,27 +39,33 @@ logger.addHandler(handler)
 
 
 def initialize_db():
-    with sqlite3.connect(DATABASE) as conn:
-        conn.execute(
+    try:
+        with sqlite3.connect(DATABASE) as conn:
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS mac_addresses (
+                    timestamp TEXT,
+                    address TEXT,
+                    PRIMARY KEY (timestamp, address)
+                )
             """
-            CREATE TABLE IF NOT EXISTS mac_addresses (
-                timestamp TEXT,
-                address TEXT,
-                PRIMARY KEY (timestamp, address)
             )
-        """
-        )
+    except Exception as e:
+        logging.error(f"Failed to initialize mac_addresses database: {e}")
 
-    with sqlite3.connect(COUNT_DATABASE) as conn:
-        conn.execute(
+    try:
+        with sqlite3.connect(COUNT_DATABASE) as conn:
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS mac_counts (
+                    timestamp TEXT,
+                    count INTEGER,
+                    PRIMARY KEY (timestamp)
+                )
             """
-            CREATE TABLE IF NOT EXISTS mac_counts (
-                timestamp TEXT,
-                count INTEGER,
-                PRIMARY KEY (timestamp)
             )
-        """
-        )
+    except Exception as e:
+        logging.error(f"Failed to initialize mac_counts database: {e}")
 
 
 def round_up_to_nearest_half_hour(dt):
@@ -97,71 +105,79 @@ def process_pcap_file(filename):
 
     try:
         os.remove(filename)
-        logging.info(
-            "{} ({})".format(
-                filename, len(mac_addresses)
-            )
-        )
+        logging.info("{} ({})".format(filename, len(mac_addresses)))
     except Exception as e:
         logging.error("Failed to delete processed file {}: {}".format(filename, e))
 
 
 def fill_gaps():
-    with sqlite3.connect(DATABASE) as conn:
-        # Use SQL to fill gaps
-        conn.execute(
-            """
-            INSERT OR IGNORE INTO mac_addresses (timestamp, address)
-            SELECT
-                datetime(
-                    julianday(timestamp) + (30 * 60) / (24 * 60 * 60),
-                    'unixepoch'
-                ),
-                address
-            FROM mac_addresses
-            WHERE
-                EXISTS (
-                    SELECT *
-                    FROM mac_addresses AS later
-                    WHERE
-                        later.address = mac_addresses.address
-                        AND (later.timestamp > mac_addresses.timestamp)
-                        AND (
-                            julianday(later.timestamp)
-                            - julianday(mac_addresses.timestamp)
-                        ) * (24 * 60 * 60) BETWEEN (30 * 60) + 1 AND 2 * 60 * 60
-                )
-            """
-        )
+    try:
+        with sqlite3.connect(DATABASE) as conn:
+            # Use SQL to fill gaps
+            conn.execute(
+                """
+                INSERT OR IGNORE INTO mac_addresses (timestamp, address)
+                SELECT
+                    datetime(
+                        julianday(timestamp) + (30 * 60) / (24 * 60 * 60),
+                        'unixepoch'
+                    ),
+                    address
+                FROM mac_addresses
+                WHERE
+                    EXISTS (
+                        SELECT *
+                        FROM mac_addresses AS later
+                        WHERE
+                            later.address = mac_addresses.address
+                            AND (later.timestamp > mac_addresses.timestamp)
+                            AND (
+                                julianday(later.timestamp)
+                                - julianday(mac_addresses.timestamp)
+                            ) * (24 * 60 * 60) BETWEEN (30 * 60) + 1 AND 2 * 60 * 60
+                    )
+                """
+            )
+    except Exception as e:
+        logging.error(f"Failed to fill gaps in mac_addresses: {e}")
 
 
 def count_and_delete_old_data():
     three_hours_ago = datetime.now() - timedelta(hours=3)
 
-    with sqlite3.connect(DATABASE) as conn:
-        # Count MAC addresses
-        counts = pd.read_sql(
-            """
-            SELECT
-                timestamp,
-                COUNT(address) as count
-            FROM mac_addresses
-            WHERE timestamp < ?
-            GROUP BY timestamp
-            """,
-            conn,
-            params=(str(three_hours_ago),),
-        )
+    try:
+        with sqlite3.connect(DATABASE) as conn:
+            # Count MAC addresses
+            counts = pd.read_sql(
+                """
+                SELECT
+                    timestamp,
+                    COUNT(address) as count
+                FROM mac_addresses
+                WHERE timestamp < ?
+                GROUP BY timestamp
+                """,
+                conn,
+                params=(str(three_hours_ago),),
+            )
+    except Exception as e:
+        logging.error(f"Failed to count mac_addresses: {e}")
 
-    # Write counts to new database
-    with sqlite3.connect(COUNT_DATABASE) as conn:
-        counts.to_sql("mac_counts", conn, if_exists="append", index=False)
-    
-    with sqlite3.connect(DATABASE) as conn:
-        # Delete old data
-        conn.execute(
-            "DELETE FROM mac_addresses WHERE timestamp < ?", (str(three_hours_ago),)
-        )
+    try:
+        # Write counts to new database
+        with sqlite3.connect(COUNT_DATABASE) as conn:
+            counts.to_sql("mac_counts", conn, if_exists="append", index=False)
+    except Exception as e:
+        logging.error(f"Failed to write counts to mac_counts database: {e}")
+
+    try:
+        with sqlite3.connect(DATABASE) as conn:
+            # Delete old data
+            conn.execute(
+                "DELETE FROM mac_addresses WHERE timestamp < ?", (str(three_hours_ago),)
+            )
+    except Exception as e:
+        logging.error(f"Failed to delete old data from mac_addresses: {e}")
 
 
 def process_pcap_files():
@@ -179,12 +195,26 @@ def process_pcap_files():
 
 
 def main():
-    initialize_db()
-    process_pcap_files()
-    fill_gaps()
+    try:
+        initialize_db()
+    except Exception as e:
+        logging.error(f"Failed to initialize database: {e}")
+
+    try:
+        process_pcap_files()
+    except Exception as e:
+        logging.error(f"Failed to process pcap files: {e}")
+
+    try:
+        fill_gaps()
+    except Exception as e:
+        logging.error(f"Failed to fill gaps in mac_addresses: {e}")
 
     if not debug:
-        count_and_delete_old_data()
+        try:
+            count_and_delete_old_data()
+        except Exception as e:
+            logging.error(f"Failed to count and delete old data: {e}")
 
 
 if __name__ == "__main__":
