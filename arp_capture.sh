@@ -3,7 +3,17 @@
 # Create a directory to store the pcap files if it does not exist
 mkdir -p /etc/arp_capture/pcap_files
 
-TIMESTAMP=$(/bin/date +%Y%m%d%H%M%S)
+# Try to get the date from Google
+GOOGLE_DATE=$(curl -I http://google.com 2>/dev/null | grep -i Date: | cut -d' ' -f3-7)
+
+if [ -z "$GOOGLE_DATE" ]; then
+    # If Google didn't return a date, use the system date
+    TIMESTAMP=$(/bin/date +%Y%m%d%H%M%S)
+else
+    # If Google returned a date, reformat it
+    TIMESTAMP=$(date -u -d "$GOOGLE_DATE" +"%Y%m%d%H%M%S")
+fi
+
 FILENAME="/etc/arp_capture/pcap_files/arp_$TIMESTAMP.pcap"
 
 # Capture ARP packets for 5 minutes
