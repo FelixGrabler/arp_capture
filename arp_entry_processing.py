@@ -180,10 +180,18 @@ def count_and_delete_old_data():
 
     try:
         with sqlite3.connect(DATABASE) as conn:
-            # Delete old data
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT COUNT(*) FROM mac_addresses WHERE timestamp < ?",
+                (str(three_hours_ago),),
+            )
+            count_del = cursor.fetchone()[0]
+            logging.info("Deleted {} old entries".format(count_del))
+
             conn.execute(
                 "DELETE FROM mac_addresses WHERE timestamp < ?", (str(three_hours_ago),)
             )
+
     except Exception as e:
         logging.error("Failed to delete old data from mac_addresses: {}".format(e))
 
