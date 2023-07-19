@@ -146,7 +146,7 @@ def fill_gaps():
 
 
 def count_and_delete_old_data():
-    delete_cutoff = datetime.now() - timedelta(hours=1000)
+    delete_cutoff = datetime.now() - timedelta(hours=10000)
     count_cutoff = datetime.now() - timedelta(hours=5)
 
     try:
