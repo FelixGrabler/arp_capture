@@ -163,8 +163,10 @@ def count_and_delete_old_data():
                 conn,
                 params=(str(cutoff),),
             )
+        print("✅ ", end="")
     except Exception as e:
         logging.error("Failed to count mac_addresses: {}".format(e))
+        print("❌ ", end="")
 
     try:
         with sqlite3.connect(COUNT_DATABASE) as conn:
@@ -178,8 +180,10 @@ def count_and_delete_old_data():
                     (row["timestamp"], row["count"]),
                 )
             conn.commit()
+        print("✅ ", end="")
     except Exception as e:
         logging.error("Failed to write counts to mac_counts database: {}".format(e))
+        print("❌ ", end="")
 
     try:
         with sqlite3.connect(DATABASE) as conn:
@@ -195,9 +199,11 @@ def count_and_delete_old_data():
             conn.execute(
                 "DELETE FROM mac_addresses WHERE timestamp < ?", (str(cutoff),)
             )
+        print("✅ ", end="")
 
     except Exception as e:
         logging.error("Failed to delete old data from mac_addresses: {}".format(e))
+        print("❌ ", end="")
 
 
 def process_pcap_files():
