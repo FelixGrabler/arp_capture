@@ -143,7 +143,7 @@ def fill_gaps():
 
 
 def count_and_delete_old_data():
-    three_hours_ago = datetime.now() - timedelta(hours=3)
+    cutoff = datetime.now() - timedelta(hours=5)
 
     try:
         with sqlite3.connect(DATABASE) as conn:
@@ -158,7 +158,7 @@ def count_and_delete_old_data():
                 GROUP BY timestamp
                 """,
                 conn,
-                params=(str(three_hours_ago),),
+                params=(str(cutoff),),
             )
     except Exception as e:
         logging.error("Failed to count mac_addresses: {}".format(e))
@@ -183,13 +183,13 @@ def count_and_delete_old_data():
             cursor = conn.cursor()
             cursor.execute(
                 "SELECT COUNT(*) FROM mac_addresses WHERE timestamp < ?",
-                (str(three_hours_ago),),
+                (str(cutoff),),
             )
             count_del = cursor.fetchone()[0]
             logging.info("Deleted {} old entries".format(count_del))
 
             conn.execute(
-                "DELETE FROM mac_addresses WHERE timestamp < ?", (str(three_hours_ago),)
+                "DELETE FROM mac_addresses WHERE timestamp < ?", (str(cutoff),)
             )
 
     except Exception as e:
