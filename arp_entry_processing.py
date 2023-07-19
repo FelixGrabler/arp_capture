@@ -110,6 +110,7 @@ def process_pcap_file(filename):
         print(" ✅ {}".format(len(mac_addresses)))
     except Exception as e:
         logging.error("Failed to delete processed file {}: {}".format(filename, e))
+        print(" ❌")
 
 
 def fill_gaps():
@@ -188,6 +189,7 @@ def count_and_delete_old_data():
                 (str(cutoff),),
             )
             count_del = cursor.fetchone()[0]
+            print("{} ".format(count_del))
             logging.info("Deleted {} old entries".format(count_del))
 
             conn.execute(
@@ -214,25 +216,37 @@ def process_pcap_files():
 
 def main():
     try:
+        print("initialize_db ", end="")
         initialize_db()
+        print("✅")
     except Exception as e:
         logging.error("Failed to initialize database: {}".format(e))
+        print("❌")
 
     try:
+        print("processing pcap files ", end="")
         process_pcap_files()
+        print("✅")
     except Exception as e:
         logging.error("Failed to process pcap files: {}".format(e))
+        print("❌")
 
     try:
+        print("filling gaps ", end="")
         fill_gaps()
+        print("✅")
     except Exception as e:
         logging.error("Failed to fill gaps in mac_addresses: {}".format(e))
+        print("❌")
 
     if not debug:
         try:
+            print("Counting and deleting old data ", end="")
             count_and_delete_old_data()
+            print("✅")
         except Exception as e:
             logging.error("Failed to count and delete old data: {}".format(e))
+            print("❌")
 
 
 if __name__ == "__main__":
