@@ -190,7 +190,7 @@ def count_and_delete_old_data():
         with sqlite3.connect(DATABASE) as conn:
             cursor = conn.cursor()
             cursor.execute(
-                "SELECT COUNT(*) FROM mac_addresses WHERE timestamp < ?",
+                "SELECT COUNT(*) FROM mac_addresses WHERE timestamp > ?",
                 (str(delete_cutoff),),
             )
             count_del = cursor.fetchone()[0]
