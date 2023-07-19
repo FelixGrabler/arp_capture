@@ -158,7 +158,7 @@ def count_and_delete_old_data():
                     timestamp,
                     COUNT(address) as count
                 FROM mac_addresses
-                WHERE timestamp < ?
+                WHERE timestamp > ?
                 GROUP BY timestamp
                 """,
                 conn,
