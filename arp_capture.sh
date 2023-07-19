@@ -11,7 +11,7 @@ if [ -z "$GOOGLE_DATE" ]; then
     TIMESTAMP=$(/bin/date +%Y%m%d%H%M%S)
 else
     # If Google returned a date, reformat it
-    TIMESTAMP=$(/bin/date -u -d "$GOOGLE_DATE" +"%Y%m%d%H%M%S")
+    TIMESTAMP=$(/bin/date -d "$GOOGLE_DATE" +"%Y%m%d%H%M%S" --date='TZ="Europe/Vienna"')
 fi
 
 FILENAME="/etc/arp_capture/pcap_files/arp_$TIMESTAMP.pcap"
