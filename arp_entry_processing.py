@@ -189,7 +189,7 @@ def count_and_delete_old_data():
                 (str(cutoff),),
             )
             count_del = cursor.fetchone()[0]
-            print("{} ".format(count_del))
+            print("{} ".format(count_del), end="")
             logging.info("Deleted {} old entries".format(count_del))
 
             conn.execute(
@@ -224,12 +224,9 @@ def main():
         print("❌")
 
     try:
-        print("processing pcap files ", end="")
         process_pcap_files()
-        print("✅")
     except Exception as e:
         logging.error("Failed to process pcap files: {}".format(e))
-        print("❌")
 
     try:
         print("filling gaps ", end="")
