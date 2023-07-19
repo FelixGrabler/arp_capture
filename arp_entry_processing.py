@@ -83,6 +83,7 @@ def extract_timestamp(filename):
 
 
 def process_pcap_file(filename):
+    print(filename, end="")
     timestamp = extract_timestamp(filename)
 
     try:
@@ -106,6 +107,7 @@ def process_pcap_file(filename):
     try:
         os.remove(filename)
         logging.info("{} ({})".format(filename, len(mac_addresses)))
+        print(" ✅ {}".format(len(mac_addresses)))
     except Exception as e:
         logging.error("Failed to delete processed file {}: {}".format(filename, e))
 
