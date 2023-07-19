@@ -51,7 +51,7 @@ def initialize_db():
             """
             )
     except Exception as e:
-        logging.error("Failed to initialize mac_addresses database: {}".format(e))
+        logging.error(f"Failed to initialize mac_addresses database: {e}")
 
     try:
         with sqlite3.connect(COUNT_DATABASE) as conn:
@@ -65,7 +65,7 @@ def initialize_db():
             """
             )
     except Exception as e:
-        logging.error("Failed to initialize mac_counts database: {}".format(e))
+        logging.error(f"Failed to initialize mac_counts database: {e}")
 
 
 def round_up_to_nearest_half_hour(dt):
@@ -139,7 +139,7 @@ def fill_gaps():
                 """
             )
     except Exception as e:
-        logging.error("Failed to fill gaps in mac_addresses: {}".format(e))
+        logging.error(f"Failed to fill gaps in mac_addresses: {e}")
 
 
 def count_and_delete_old_data():
@@ -161,14 +161,22 @@ def count_and_delete_old_data():
                 params=(str(three_hours_ago),),
             )
     except Exception as e:
-        logging.error("Failed to count mac_addresses: {}".format(e))
+        logging.error(f"Failed to count mac_addresses: {e}")
 
     try:
-        # Write counts to new database
         with sqlite3.connect(COUNT_DATABASE) as conn:
-            counts.to_sql("mac_counts", conn, if_exists="append", index=False)
+            cursor = conn.cursor()
+            for index, row in counts.iterrows():
+                cursor.execute(
+                    """
+                    INSERT OR REPLACE INTO mac_counts (timestamp, count)
+                    VALUES (?, ?)
+                """,
+                    (row["timestamp"], row["count"]),
+                )
+            conn.commit()
     except Exception as e:
-        logging.error("Failed to write counts to mac_counts database: {}".format(e))
+        logging.error(f"Failed to write counts to mac_counts database: {e}")
 
     try:
         with sqlite3.connect(DATABASE) as conn:
@@ -177,7 +185,7 @@ def count_and_delete_old_data():
                 "DELETE FROM mac_addresses WHERE timestamp < ?", (str(three_hours_ago),)
             )
     except Exception as e:
-        logging.error("Failed to delete old data from mac_addresses: {}".format(e))
+        logging.error(f"Failed to delete old data from mac_addresses: {e}")
 
 
 def process_pcap_files():
@@ -198,23 +206,23 @@ def main():
     try:
         initialize_db()
     except Exception as e:
-        logging.error("Failed to initialize database: {}".format(e))
+        logging.error(f"Failed to initialize database: {e}")
 
     try:
         process_pcap_files()
     except Exception as e:
-        logging.error("Failed to process pcap files: {}".format(e))
+        logging.error(f"Failed to process pcap files: {e}")
 
     try:
         fill_gaps()
     except Exception as e:
-        logging.error("Failed to fill gaps in mac_addresses: {}".format(e))
+        logging.error(f"Failed to fill gaps in mac_addresses: {e}")
 
     if not debug:
         try:
             count_and_delete_old_data()
         except Exception as e:
-            logging.error("Failed to count and delete old data: {}".format(e))
+            logging.error(f"Failed to count and delete old data: {e}")
 
 
 if __name__ == "__main__":
