@@ -7,10 +7,11 @@ import pandas as pd
 import logging
 from logging.handlers import RotatingFileHandler
 
-DATABASE = "/etc/arp_capture/mac.db"
-COUNT_DATABASE = "/etc/arp_capture/count.db"
-PCAP_DIR = "/etc/arp_capture/pcap_files/"
-LOG_DIR = "/etc/arp_capture/logs"
+BASE_DIR = os.getcwd()
+DATABASE = os.path.join(BASE_DIR, "mac.db")
+COUNT_DATABASE = os.path.join(BASE_DIR, "count.db")
+PCAP_DIR = os.path.join(BASE_DIR, "pcap_files/")
+LOG_DIR = os.path.join(BASE_DIR, "logs/")
 
 debug = (
     False  # Set this to True to not delete old mac data and to disable count feature
@@ -38,7 +39,10 @@ logger.setLevel(logging.INFO)
 logger.addHandler(handler)
 
 
-def initialize_db():
+def initialize_db() -> None:
+    """
+    Initializes the databases used for storing mac addresses and their counts.
+    """
     try:
         with sqlite3.connect(DATABASE) as conn:
             conn.execute(
@@ -68,21 +72,38 @@ def initialize_db():
         logging.error("Failed to initialize mac_counts database: {}".format(e))
 
 
-def round_up_to_nearest_half_hour(dt):
+def round_up_to_nearest_half_hour(dt: datetime) -> datetime:
+    """
+    Rounds up the given datetime object to the nearest half hour.
+
+    :param dt: The datetime object to round up.
+    :return: The datetime object rounded up to the nearest half hour.
+    """
     if dt.minute % 30 or dt.second:
         return dt + timedelta(minutes=30 - dt.minute % 30, seconds=-dt.second)
     else:
         return dt
 
 
-def extract_timestamp(filename):
+def extract_timestamp(filename: str) -> datetime:
+    """
+    Extracts the timestamp from the given filename.
+
+    :param filename: The filename to extract the timestamp from.
+    :return: The extracted timestamp as a datetime object.
+    """
     basename = os.path.basename(filename)
     return datetime.strptime(
         basename[4:18], "%Y%m%d%H%M%S"
     )  # Convert to datetime object
 
 
-def process_pcap_file(filename):
+def process_pcap_file(filename: str) -> None:
+    """
+    Processes the given pcap file.
+
+    :param filename: The name of the pcap file to process.
+    """
     print(filename, end="")
     timestamp = extract_timestamp(filename)
 
@@ -113,7 +134,10 @@ def process_pcap_file(filename):
         print(" ❌")
 
 
-def fill_gaps():
+def fill_gaps() -> None:
+    """
+    Fills gaps in the mac addresses data.
+    """
     try:
         with sqlite3.connect(DATABASE) as conn:
             # Use SQL to fill gaps
@@ -145,7 +169,10 @@ def fill_gaps():
         logging.error("Failed to fill gaps in mac_addresses: {}".format(e))
 
 
-def count_and_delete_old_data():
+def count_and_delete_old_data() -> None:
+    """
+    Counts and deletes old data from the databases.
+    """
     delete_cutoff = datetime.now() - timedelta(hours=10)
     count_cutoff = datetime.now() - timedelta(hours=5)
 
@@ -189,7 +216,10 @@ def count_and_delete_old_data():
     try:
         with sqlite3.connect(DATABASE) as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT COUNT(*) FROM mac_addresses WHERE timestamp < ?",(str(delete_cutoff),),)
+            cursor.execute(
+                "SELECT COUNT(*) FROM mac_addresses WHERE timestamp < ?",
+                (str(delete_cutoff),),
+            )
             count_del = cursor.fetchone()[0]
             print("{} ".format(count_del), end="")
             logging.info("Deleted {} old entries".format(count_del))
@@ -204,7 +234,10 @@ def count_and_delete_old_data():
         print("❌ ", end="")
 
 
-def process_pcap_files():
+def process_pcap_files() -> None:
+    """
+    Processes all pcap files in the specified directory.
+    """
     pcap_files = sorted(
         filename
         for filename in os.listdir(PCAP_DIR)
@@ -218,7 +251,10 @@ def process_pcap_files():
         process_pcap_file(os.path.join(PCAP_DIR, filename))
 
 
-def main():
+def main() -> None:
+    """
+    Main function for the script.
+    """
     try:
         print("initialize_db ", end="")
         initialize_db()
