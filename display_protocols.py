@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 from scapy.all import rdpcap, ARP, ICMP, Ether, UDP, DNS, BOOTP
 from collections import defaultdict
 import matplotlib.pyplot as plt
@@ -9,12 +10,19 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # Use os.path.join to create full file paths
 PCAP_DIR = os.path.join(BASE_DIR, "pcap_files")
 
+def is_within_time_range(filename, start_time, end_time):
+    timestamp_str = filename.split('_')[1].split('.')[0]  # Get the timestamp part of the filename
+    timestamp = datetime.strptime(timestamp_str, "%Y%m%d%H%M%S")
+
+    return start_time <= timestamp <= end_time
 
 def count_protocols():
     protocol_counts = defaultdict(set)
+    start_time = datetime.strptime("20230721100000", "%Y%m%d%H%M%S")
+    end_time = datetime.strptime("20230721103000", "%Y%m%d%H%M%S")
 
     for filename in os.listdir(PCAP_DIR):
-        if filename.endswith(".pcap"):
+        if filename.startswith('arp_') and is_within_time_range(filename, start_time, end_time):
             packets = rdpcap(os.path.join(PCAP_DIR, filename))
 
             for packet in packets:
@@ -45,7 +53,6 @@ def count_protocols():
 
     return protocol_counts
 
-
 def plot_counts(protocol_counts):
     protocols = list(protocol_counts.keys())
     counts = [protocol_counts[protocol] for protocol in protocols]
@@ -55,7 +62,6 @@ def plot_counts(protocol_counts):
     plt.ylabel("Distinct MAC Addresses")
     plt.title("MAC Addresses by Protocol")
     plt.show()
-
 
 def main():
     protocol_counts = count_protocols()
