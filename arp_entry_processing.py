@@ -107,6 +107,12 @@ def process_pcap_file(filename):
 
     if mac_addresses:
         timestamp = round_up_to_nearest_half_hour(timestamp)
+        with sqlite3.connect(DATABASE) as conn:
+            cursor = conn.cursor()
+            cursor.executemany(
+                "INSERT OR IGNORE INTO mac_addresses (timestamp, address) VALUES (?, ?)",
+                [(str(timestamp), address) for address in mac_addresses],
+            )
 
     try:
         os.remove(filename)
@@ -115,8 +121,6 @@ def process_pcap_file(filename):
     except Exception as e:
         logging.error("Failed to delete processed file {}: {}".format(filename, e))
         print(" ❌")
-
-    return str(timestamp), mac_addresses
 
 def process_pcap_files():
     """
@@ -132,17 +136,8 @@ def process_pcap_files():
     pcap_files = pcap_files[:-1]
 
     with Pool() as p:
-        results = p.map(process_pcap_file, [os.path.join(PCAP_DIR, filename) for filename in pcap_files])
-    
-    # Write results to database
-    with sqlite3.connect(DATABASE) as conn:
-        cursor = conn.cursor()
-        for timestamp, mac_addresses in results:
-            if mac_addresses:
-                cursor.executemany(
-                    "INSERT OR IGNORE INTO mac_addresses (timestamp, address) VALUES (?, ?)",
-                    [(timestamp, address) for address in mac_addresses],
-                )
+        p.map(process_pcap_file, [os.path.join(PCAP_DIR, filename) for filename in pcap_files])
+
 
 def fill_gaps():
     """
