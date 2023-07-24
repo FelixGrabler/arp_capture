@@ -3,7 +3,7 @@ import sqlite3
 from scapy.all import rdpcap
 from scapy.layers.l2 import Ether
 from datetime import datetime, timedelta
-import pandas as pd
+from multiprocessing import Pool
 import logging
 from logging.handlers import RotatingFileHandler
 
@@ -13,13 +13,7 @@ COUNT_DATABASE = os.path.join(BASE_DIR, "count.db")
 PCAP_DIR = os.path.join(BASE_DIR, "pcap_files/")
 LOG_DIR = os.path.join(BASE_DIR, "logs/")
 
-debug = (
-    False  # Set this to True to not delete old mac data and to disable count feature
-)
-
-# Check if the log directory exists, if not, create it
-if not os.path.exists(LOG_DIR):
-    os.makedirs(LOG_DIR)
+debug = False  # Set this to True to not delete old mac data and to disable count feature
 
 # Setting up logging
 log_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
@@ -38,8 +32,7 @@ logger.setLevel(logging.INFO)
 
 logger.addHandler(handler)
 
-
-def initialize_db() -> None:
+def initialize_db():
     """
     Initializes the databases used for storing mac addresses and their counts.
     """
@@ -71,8 +64,7 @@ def initialize_db() -> None:
     except Exception as e:
         logging.error("Failed to initialize mac_counts database: {}".format(e))
 
-
-def round_up_to_nearest_half_hour(dt: datetime) -> datetime:
+def round_up_to_nearest_half_hour(dt):
     """
     Rounds up the given datetime object to the nearest half hour.
 
@@ -84,8 +76,7 @@ def round_up_to_nearest_half_hour(dt: datetime) -> datetime:
     else:
         return dt
 
-
-def extract_timestamp(filename: str) -> datetime:
+def extract_timestamp(filename):
     """
     Extracts the timestamp from the given filename.
 
@@ -97,8 +88,7 @@ def extract_timestamp(filename: str) -> datetime:
         basename[4:18], "%Y%m%d%H%M%S"
     )  # Convert to datetime object
 
-
-def process_pcap_file(filename: str) -> None:
+def process_pcap_file(filename):
     """
     Processes the given pcap file.
 
@@ -117,13 +107,6 @@ def process_pcap_file(filename: str) -> None:
 
     if mac_addresses:
         timestamp = round_up_to_nearest_half_hour(timestamp)
-        with sqlite3.connect(DATABASE) as conn:
-            cursor = conn.cursor()
-            # Batch insert all MAC addresses
-            cursor.executemany(
-                "INSERT OR IGNORE INTO mac_addresses (timestamp, address) VALUES (?, ?)",
-                [(str(timestamp), address) for address in mac_addresses],
-            )
 
     try:
         os.remove(filename)
@@ -133,8 +116,35 @@ def process_pcap_file(filename: str) -> None:
         logging.error("Failed to delete processed file {}: {}".format(filename, e))
         print(" ❌")
 
+    return str(timestamp), mac_addresses
 
-def fill_gaps() -> None:
+def process_pcap_files():
+    """
+    Processes all pcap files in the specified directory.
+    """
+    pcap_files = sorted(
+        filename
+        for filename in os.listdir(PCAP_DIR)
+        if filename.startswith("arp_") and filename.endswith(".pcap")
+    )
+
+    # Exclude the last file because it is still written to
+    pcap_files = pcap_files[:-1]
+
+    with Pool() as p:
+        results = p.map(process_pcap_file, [os.path.join(PCAP_DIR, filename) for filename in pcap_files])
+    
+    # Write results to database
+    with sqlite3.connect(DATABASE) as conn:
+        cursor = conn.cursor()
+        for timestamp, mac_addresses in results:
+            if mac_addresses:
+                cursor.executemany(
+                    "INSERT OR IGNORE INTO mac_addresses (timestamp, address) VALUES (?, ?)",
+                    [(timestamp, address) for address in mac_addresses],
+                )
+
+def fill_gaps():
     """
     Fills gaps in the mac addresses data.
     """
@@ -168,8 +178,7 @@ def fill_gaps() -> None:
     except Exception as e:
         logging.error("Failed to fill gaps in mac_addresses: {}".format(e))
 
-
-def count_and_delete_old_data() -> None:
+def count_and_delete_old_data():
     """
     Counts and deletes old data from the databases.
     """
@@ -234,24 +243,7 @@ def count_and_delete_old_data() -> None:
         print("❌ ", end="")
 
 
-def process_pcap_files() -> None:
-    """
-    Processes all pcap files in the specified directory.
-    """
-    pcap_files = sorted(
-        filename
-        for filename in os.listdir(PCAP_DIR)
-        if filename.startswith("arp_") and filename.endswith(".pcap")
-    )
-
-    # Exclude the last file because it is still written to
-    pcap_files = pcap_files[:-1]
-
-    for filename in pcap_files:
-        process_pcap_file(os.path.join(PCAP_DIR, filename))
-
-
-def main() -> None:
+def main():
     """
     Main function for the script.
     """
