@@ -291,6 +291,19 @@ def fill_gaps_in_count_db():
         logging.error("Failed to fill gaps in count data: {}".format(e))
 
 
+def delete_pre_2000_entries():
+    """
+    Deletes all entries from the count.db database before the year 2000.
+    """
+    try:
+        with sqlite3.connect(COUNT_DATABASE) as conn:
+            conn.execute(
+                "DELETE FROM mac_counts WHERE timestamp < '2000-01-01 00:00:00'"
+            )
+    except Exception as e:
+        logging.error("Failed to delete pre-2000 entries from count.db: {}".format(e))
+
+
 def main():
     """
     Main function for the script.
@@ -315,6 +328,14 @@ def main():
         print("✅")
     except Exception as e:
         logging.error("Failed to fill gaps in mac_addresses: {}".format(e))
+        print("❌")
+
+    try:
+        print("Deleting pre-2000 entries ", end="")
+        delete_pre_2000_entries()
+        print("✅")
+    except Exception as e:
+        logging.error("Failed to delete pre-2000 entries from count.db: {}".format(e))
         print("❌")
 
     if not debug:
