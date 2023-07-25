@@ -62,6 +62,7 @@ def initialize_db():
                 CREATE TABLE IF NOT EXISTS mac_counts (
                     timestamp TEXT,
                     count INTEGER,
+                    generation_method TEXT,
                     PRIMARY KEY (timestamp)
                 )
             """
@@ -258,7 +259,7 @@ def fill_gaps_in_count_db():
     try:
         with sqlite3.connect(COUNT_DATABASE) as conn:
             df = pd.read_sql(
-                "SELECT timestamp, count FROM mac_counts ORDER BY timestamp",
+                "SELECT timestamp, count, generation_method FROM mac_counts ORDER BY timestamp",
                 conn,
                 index_col="timestamp",
                 parse_dates=["timestamp"],
@@ -268,7 +269,9 @@ def fill_gaps_in_count_db():
         df = df.resample("30T").asfreq()
 
         # Forward-fill for up to 3 hours
-        df = df.fillna(method="ffill", limit=6)
+        df.loc[
+            df["count"].fillna(method="ffill", limit=6).notna(), "generation_method"
+        ] = "linear"
 
         # Fill remaining gaps with data from one week ago, then one day ago
         for i, row in df.iterrows():
@@ -278,11 +281,14 @@ def fill_gaps_in_count_db():
 
                 if week_ago in df.index and pd.notnull(df.loc[week_ago, "count"]):
                     df.loc[i, "count"] = df.loc[week_ago, "count"]
+                    df.loc[i, "generation_method"] = "week"
                 elif day_ago in df.index and pd.notnull(df.loc[day_ago, "count"]):
                     df.loc[i, "count"] = df.loc[day_ago, "count"]
+                    df.loc[i, "generation_method"] = "day"
 
         # Fill any remaining NaNs with 0
-        df = df.fillna(0)
+        df.loc[df["count"].isna(), "count"] = 0
+        df.loc[df["count"].isna(), "generation_method"] = "no data"
 
         # Write the filled data back to the database
         df.to_sql("mac_counts", conn, if_exists="replace")
