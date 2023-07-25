@@ -299,15 +299,19 @@ def fill_gaps_in_count_db():
 
 def delete_pre_2000_entries():
     """
-    Deletes all entries from the count.db database before the year 2000.
+    Deletes all entries from the count.db database before the year 2000 and
+    prints the number of deleted entries.
     """
     try:
         with sqlite3.connect(COUNT_DATABASE) as conn:
-            conn.execute(
+            cursor = conn.cursor()
+            cursor.execute(
                 "DELETE FROM mac_counts WHERE timestamp < '2000-01-01 00:00:00'"
             )
+            deleted_entries = cursor.rowcount
+            print(deleted_entries, end="")
     except Exception as e:
-        logging.error("Failed to delete pre-2000 entries from count.db: {}".format(e))
+        logging.error("❌ {}".format(e))
 
 
 def main():
@@ -337,7 +341,7 @@ def main():
         print("❌")
 
     try:
-        print("Deleting pre-2000 entries ", end="")
+        print("Deleting pre-2000 entries: ", end="")
         delete_pre_2000_entries()
         print("✅")
     except Exception as e:
