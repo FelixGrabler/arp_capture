@@ -220,7 +220,7 @@ def count_and_delete_old_data():
             for index, row in counts.iterrows():
                 cursor.execute(
                     """
-                    INSERT OR REPLACE INTO mac_counts (timestamp, count)
+                    INSERT OR IGNORE INTO mac_counts (timestamp, count)
                     VALUES (?, ?)
                 """,
                     (row["timestamp"], row["count"]),
@@ -250,6 +250,24 @@ def count_and_delete_old_data():
     except Exception as e:
         logging.error("Failed to delete old data from mac_addresses: {}".format(e))
         print("❌ ", end="")
+
+
+def delete_pre_2000_entries():
+    """
+    Deletes all entries from the count.db database before the year 2000 and
+    prints the number of deleted entries.
+    """
+    try:
+        with sqlite3.connect(COUNT_DATABASE) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "DELETE FROM mac_counts WHERE strftime('%Y', timestamp) < '2000'"
+            )
+            deleted_entries = cursor.rowcount
+            print(deleted_entries, end="")
+    except Exception as e:
+        logging.error("Failed to delete pre-2000 entries from count.db: {}".format(e))
+        print("❌")
 
 
 def fill_gaps_in_count_db():
@@ -303,23 +321,6 @@ def fill_gaps_in_count_db():
 
     except Exception as e:
         logging.error("Failed to fill gaps in count data: {}".format(e))
-
-
-def delete_pre_2000_entries():
-    """
-    Deletes all entries from the count.db database before the year 2000 and
-    prints the number of deleted entries.
-    """
-    try:
-        with sqlite3.connect(COUNT_DATABASE) as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                "DELETE FROM mac_counts WHERE timestamp < '2000-01-01 00:00:00'"
-            )
-            deleted_entries = cursor.rowcount
-            print(deleted_entries, end="")
-    except Exception as e:
-        logging.error("❌ {}".format(e))
 
 
 def main():
