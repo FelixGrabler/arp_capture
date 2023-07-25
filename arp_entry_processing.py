@@ -191,7 +191,7 @@ def count_and_delete_old_data():
     """
     Counts and deletes old data from the databases.
     """
-    delete_cutoff = datetime.now() - timedelta(hours=10)
+    delete_cutoff = datetime.now() - timedelta(hours=100)
     count_cutoff = datetime.now() - timedelta(hours=3)
 
     try:
