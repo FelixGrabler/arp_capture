@@ -1,11 +1,13 @@
+import logging
 import os
 import sqlite3
+from datetime import datetime, timedelta
+from logging.handlers import RotatingFileHandler
+from multiprocessing import Pool
+
+import pandas as pd
 from scapy.all import rdpcap
 from scapy.layers.l2 import Ether
-from datetime import datetime, timedelta
-from multiprocessing import Pool
-import logging
-from logging.handlers import RotatingFileHandler
 
 BASE_DIR = os.getcwd()
 DATABASE = os.path.join(BASE_DIR, "mac.db")
@@ -13,7 +15,9 @@ COUNT_DATABASE = os.path.join(BASE_DIR, "count.db")
 PCAP_DIR = os.path.join(BASE_DIR, "pcap_files/")
 LOG_DIR = os.path.join(BASE_DIR, "logs/")
 
-debug = False  # Set this to True to not delete old mac data and to disable count feature
+debug = (
+    False  # Set this to True to not delete old mac data and to disable count feature
+)
 
 # Setting up logging
 log_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
@@ -31,6 +35,7 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 logger.addHandler(handler)
+
 
 def initialize_db():
     """
@@ -64,6 +69,7 @@ def initialize_db():
     except Exception as e:
         logging.error("Failed to initialize mac_counts database: {}".format(e))
 
+
 def round_up_to_nearest_half_hour(dt):
     """
     Rounds up the given datetime object to the nearest half hour.
@@ -76,6 +82,7 @@ def round_up_to_nearest_half_hour(dt):
     else:
         return dt
 
+
 def extract_timestamp(filename):
     """
     Extracts the timestamp from the given filename.
@@ -87,6 +94,7 @@ def extract_timestamp(filename):
     return datetime.strptime(
         basename[4:18], "%Y%m%d%H%M%S"
     )  # Convert to datetime object
+
 
 def process_pcap_file(filename):
     """
@@ -122,6 +130,7 @@ def process_pcap_file(filename):
         logging.error("Failed to delete processed file {}: {}".format(filename, e))
         print(" ❌")
 
+
 def process_pcap_files():
     """
     Processes all pcap files in the specified directory.
@@ -136,7 +145,10 @@ def process_pcap_files():
     pcap_files = pcap_files[:-1]
 
     with Pool() as p:
-        p.map(process_pcap_file, [os.path.join(PCAP_DIR, filename) for filename in pcap_files])
+        p.map(
+            process_pcap_file,
+            [os.path.join(PCAP_DIR, filename) for filename in pcap_files],
+        )
 
 
 def fill_gaps():
@@ -173,12 +185,13 @@ def fill_gaps():
     except Exception as e:
         logging.error("Failed to fill gaps in mac_addresses: {}".format(e))
 
+
 def count_and_delete_old_data():
     """
     Counts and deletes old data from the databases.
     """
     delete_cutoff = datetime.now() - timedelta(hours=10)
-    count_cutoff = datetime.now() - timedelta(hours=5)
+    count_cutoff = datetime.now() - timedelta(hours=3)
 
     try:
         with sqlite3.connect(DATABASE) as conn:
@@ -238,6 +251,46 @@ def count_and_delete_old_data():
         print("❌ ", end="")
 
 
+def fill_gaps_in_count_db():
+    """
+    Fills gaps in the count data using the specified rules.
+    """
+    try:
+        with sqlite3.connect(COUNT_DATABASE) as conn:
+            df = pd.read_sql(
+                "SELECT timestamp, count FROM mac_counts ORDER BY timestamp",
+                conn,
+                index_col="timestamp",
+                parse_dates=["timestamp"],
+            )
+
+        # Resample to 30-minute intervals
+        df = df.resample("30T").asfreq()
+
+        # Forward-fill for up to 3 hours
+        df = df.fillna(method="ffill", limit=6)
+
+        # Fill remaining gaps with data from one week ago, then one day ago
+        for i, row in df.iterrows():
+            if pd.isnull(row["count"]):
+                week_ago = i - pd.DateOffset(weeks=1)
+                day_ago = i - pd.DateOffset(days=1)
+
+                if week_ago in df.index and pd.notnull(df.loc[week_ago, "count"]):
+                    df.loc[i, "count"] = df.loc[week_ago, "count"]
+                elif day_ago in df.index and pd.notnull(df.loc[day_ago, "count"]):
+                    df.loc[i, "count"] = df.loc[day_ago, "count"]
+
+        # Fill any remaining NaNs with 0
+        df = df.fillna(0)
+
+        # Write the filled data back to the database
+        df.to_sql("mac_counts", conn, if_exists="replace")
+
+    except Exception as e:
+        logging.error("Failed to fill gaps in count data: {}".format(e))
+
+
 def main():
     """
     Main function for the script.
@@ -254,6 +307,7 @@ def main():
         process_pcap_files()
     except Exception as e:
         logging.error("Failed to process pcap files: {}".format(e))
+        print("❌")
 
     try:
         print("filling gaps ", end="")
@@ -268,6 +322,7 @@ def main():
             print("Counting and deleting old data ", end="")
             count_and_delete_old_data()
             print("✅")
+            fill_gaps_in_count_db()
         except Exception as e:
             logging.error("Failed to count and delete old data: {}".format(e))
             print("❌")
