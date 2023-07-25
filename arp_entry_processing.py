@@ -203,7 +203,7 @@ def count_and_delete_old_data():
                     timestamp,
                     COUNT(address) as count
                 FROM mac_addresses
-                WHERE timestamp > ?
+                WHERE timestamp < ?
                 GROUP BY timestamp
                 """,
                 conn,
@@ -268,27 +268,35 @@ def fill_gaps_in_count_db():
         # Resample to 30-minute intervals
         df = df.resample("30T").asfreq()
 
-        # Forward-fill for up to 3 hours
-        df.loc[
-            df["count"].fillna(method="ffill", limit=6).notna(), "generation_method"
-        ] = "linear"
-
-        # Fill remaining gaps with data from one week ago, then one day ago
+        # Fill gaps with linear interpolation if less than 2 hours, then with data from one week ago, then one day ago, then linear interpolation
         for i, row in df.iterrows():
             if pd.isnull(row["count"]):
-                week_ago = i - pd.DateOffset(weeks=1)
-                day_ago = i - pd.DateOffset(days=1)
+                before = df[df.index < i].last_valid_index()
+                after = df[df.index > i].first_valid_index()
+                if after - before <= pd.Timedelta(hours=2):
+                    df.loc[i, "count"] = df.loc[before, "count"] + (
+                        df.loc[after, "count"] - df.loc[before, "count"]
+                    ) / ((after - before) / pd.Timedelta(minutes=30))
+                    df.loc[i, "generation_method"] = "linear"
+                else:
+                    week_ago = i - pd.DateOffset(weeks=1)
+                    day_ago = i - pd.DateOffset(days=1)
 
-                if week_ago in df.index and pd.notnull(df.loc[week_ago, "count"]):
-                    df.loc[i, "count"] = df.loc[week_ago, "count"]
-                    df.loc[i, "generation_method"] = "week"
-                elif day_ago in df.index and pd.notnull(df.loc[day_ago, "count"]):
-                    df.loc[i, "count"] = df.loc[day_ago, "count"]
-                    df.loc[i, "generation_method"] = "day"
+                    if week_ago in df.index and pd.notnull(df.loc[week_ago, "count"]):
+                        df.loc[i, "count"] = df.loc[week_ago, "count"]
+                        df.loc[i, "generation_method"] = "week"
+                    elif day_ago in df.index and pd.notnull(df.loc[day_ago, "count"]):
+                        df.loc[i, "count"] = df.loc[day_ago, "count"]
+                        df.loc[i, "generation_method"] = "day"
+                    else:
+                        df.loc[i, "count"] = df.loc[before, "count"] + (
+                            df.loc[after, "count"] - df.loc[before, "count"]
+                        ) / ((after - before) / pd.Timedelta(minutes=30))
+                        df.loc[i, "generation_method"] = "linear"
 
         # Fill any remaining NaNs with 0
-        df.loc[df["count"].isna(), "count"] = 0
-        df.loc[df["count"].isna(), "generation_method"] = "no data"
+        df["count"].fillna(0, inplace=True)
+        df["generation_method"].fillna("no data", inplace=True)
 
         # Write the filled data back to the database
         df.to_sql("mac_counts", conn, if_exists="replace")
