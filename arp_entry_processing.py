@@ -26,7 +26,7 @@ log_file = os.path.join(LOG_DIR, "arp_capture.log")
 
 # Use a rotating file handler to limit file size and number of backup log files
 handler = RotatingFileHandler(
-    log_file, mode="a", maxBytes=33 * 1024, backupCount=2, encoding=None, delay=0
+    log_file, mode="a", maxBytes=30 * 1024, backupCount=3, encoding=None, delay=0
 )
 handler.setFormatter(log_formatter)
 handler.setLevel(logging.INFO)
@@ -54,6 +54,7 @@ def initialize_db():
             )
     except Exception as e:
         logging.error("Failed to initialize mac_addresses database: {}".format(e))
+        raise e
 
     try:
         with sqlite3.connect(COUNT_DATABASE) as conn:
@@ -69,6 +70,7 @@ def initialize_db():
             )
     except Exception as e:
         logging.error("Failed to initialize mac_counts database: {}".format(e))
+        raise e
 
 
 def round_up_to_nearest_half_hour(dt):
@@ -291,7 +293,7 @@ def fill_gaps_in_count_db():
             if pd.isnull(row["count"]):
                 before = df[df.index < i].last_valid_index()
                 after = df[df.index > i].first_valid_index()
-                if after - before <= pd.Timedelta(hours=2):
+                if after and before and after - before <= pd.Timedelta(hours=2):
                     df.loc[i, "count"] = df.loc[before, "count"] + (
                         df.loc[after, "count"] - df.loc[before, "count"]
                     ) / ((after - before) / pd.Timedelta(minutes=30))
@@ -332,7 +334,6 @@ def main():
         initialize_db()
         print("✅")
     except Exception as e:
-        logging.error("Failed to initialize database: {}".format(e))
         print("❌")
 
     try:
