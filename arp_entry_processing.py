@@ -9,7 +9,8 @@ import pandas as pd
 from scapy.all import rdpcap
 from scapy.layers.l2 import Ether
 
-BASE_DIR = os.getcwd()
+# BASE_DIR = os.getcwd()
+BASE_DIR = "/etc/arp_capture/"
 DATABASE = os.path.join(BASE_DIR, "mac.db")
 COUNT_DATABASE = os.path.join(BASE_DIR, "count.db")
 PCAP_DIR = os.path.join(BASE_DIR, "pcap_files/")
