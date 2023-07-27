@@ -145,7 +145,7 @@ def process_pcap_file(filename):
     # remove file
     try:
         os.remove(filename)
-        logging.info("{} ({} MACs) ({} packets)".format(len(mac_addresses), len(packets)))
+        logging.info("{} ({} MACs) ({} packets)".format(filename, len(mac_addresses), len(packets)))
         print(" ✅ ({} MACs) ({} packets)".format(len(mac_addresses), len(packets)))
     except Exception as e:
         logging.error("Failed to delete processed file {}: {}".format(filename, e))
