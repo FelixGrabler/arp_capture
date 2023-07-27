@@ -130,10 +130,10 @@ def process_pcap_file(filename):
         with sqlite3.connect(DATABASE) as conn:
             cursor = conn.cursor()
             cursor.executemany(
-                "INSERT OR IGNORE INTO mac_addresses (timestamp, address, is_original) VALUES (?, ?, ?)",
+                "INSERT OR REPLACE INTO mac_addresses (timestamp, address, is_original) VALUES (?, ?, ?)",
                 [(str(timestamp), address, 1) for address in mac_addresses],  # Mark original entries as 1
             )
-            print("({} original) ".format(cursor.rowcount), end="")
+            print(" ({} original) ".format(cursor.rowcount), end="")
         
             # Fill entries for the next 1.5 hours
             for i in range(1, 4):
@@ -222,7 +222,7 @@ def count_and_delete_old_data():
     Counts and deletes old data from the databases.
     """
     delete_cutoff = datetime.now() - timedelta(hours=100)
-    count_cutoff = datetime.now() - timedelta(hours=3)
+    count_cutoff = datetime.now() - timedelta(hours=0)
 
     try:
         with sqlite3.connect(DATABASE) as conn:
