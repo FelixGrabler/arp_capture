@@ -146,7 +146,7 @@ def process_pcap_file(filename):
     try:
         os.remove(filename)
         logging.info("{} ({} MACs, {} packets)".format(filename, len(mac_addresses), len(packets)))
-        print(" ✅ ({} MACs) ({} packets)".format(len(mac_addresses), len(packets)))
+        print(" ✅ ({} MACs, {} packets)".format(len(mac_addresses), len(packets)))
     except Exception as e:
         logging.error("Failed to delete processed file {}: {}".format(filename, e))
         print(" ❌")
@@ -184,7 +184,7 @@ def fill_gaps():
                 """
                 INSERT OR IGNORE INTO mac_addresses (timestamp, address)
                 SELECT
-                    # Create new timestamps by adding 30 minutes to existing timestamps
+                    -- Create new timestamps by adding 30 minutes to existing timestamps
                     datetime(
                         julianday(timestamp) + (30) / (24 * 60),
                         'unixepoch'
@@ -197,9 +197,9 @@ def fill_gaps():
                         FROM mac_addresses AS later
                         WHERE
                             later.address = mac_addresses.address
-                            # The timestamp of the later record must be greater than the current record
+                            -- The timestamp of the later record must be greater than the current record
                             AND (later.timestamp > mac_addresses.timestamp)
-                            # The gap between the current and later record must be between 30 minutes and 2 hours
+                            -- The gap between the current and later record must be between 30 minutes and 2 hours
                             AND (
                                 julianday(later.timestamp)
                                 - julianday(mac_addresses.timestamp)
