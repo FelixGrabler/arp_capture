@@ -109,14 +109,17 @@ def process_pcap_file(filename):
     print(filename, end="")
     timestamp = extract_timestamp(filename)
 
+    # read file content
     try:
         packets = rdpcap(filename)
     except Exception as e:
         logging.error("Failed to read pcap file {}: {}".format(filename, e))
+        print("❌")
         return
 
     mac_addresses = set(packet[Ether].src for packet in packets if Ether in packet)
 
+    # insert mac addresses into mac.db
     if mac_addresses:
         timestamp = round_up_to_nearest_half_hour(timestamp)
         with sqlite3.connect(DATABASE) as conn:
@@ -126,10 +129,11 @@ def process_pcap_file(filename):
                 [(str(timestamp), address) for address in mac_addresses],
             )
 
+    # remove file
     try:
         os.remove(filename)
-        logging.info("{} ({})".format(filename, len(mac_addresses)))
-        print(" ✅ {}".format(len(mac_addresses)))
+        logging.info("{} ({} MACs) ({} packets)".format(len(mac_addresses), len(packets)))
+        print(" ✅ ({} MACs) ({} packets)".format(len(mac_addresses), len(packets)))
     except Exception as e:
         logging.error("Failed to delete processed file {}: {}".format(filename, e))
         print(" ❌")
@@ -142,7 +146,7 @@ def process_pcap_files():
     pcap_files = sorted(
         filename
         for filename in os.listdir(PCAP_DIR)
-        if filename.startswith("arp_") and filename.endswith(".pcap")
+        if filename.endswith(".pcap")
     )
 
     # Exclude the last file because it is still written to
@@ -157,17 +161,18 @@ def process_pcap_files():
 
 def fill_gaps():
     """
-    Fills gaps in the mac addresses data.
+    Fills gaps in the mac.db that are <2h
     """
     try:
         with sqlite3.connect(DATABASE) as conn:
-            # Use SQL to fill gaps
+            # Use SQL to fill gaps in mac.db that are <2h
             conn.execute(
                 """
                 INSERT OR IGNORE INTO mac_addresses (timestamp, address)
                 SELECT
+                    # Create new timestamps by adding 30 minutes to existing timestamps
                     datetime(
-                        julianday(timestamp) + (30 * 60) / (24 * 60 * 60),
+                        julianday(timestamp) + (30) / (24 * 60),
                         'unixepoch'
                     ),
                     address
@@ -178,7 +183,9 @@ def fill_gaps():
                         FROM mac_addresses AS later
                         WHERE
                             later.address = mac_addresses.address
+                            # The timestamp of the later record must be greater than the current record
                             AND (later.timestamp > mac_addresses.timestamp)
+                            # The gap between the current and later record must be between 30 minutes and 2 hours
                             AND (
                                 julianday(later.timestamp)
                                 - julianday(mac_addresses.timestamp)
@@ -187,6 +194,7 @@ def fill_gaps():
                 """
             )
     except Exception as e:
+        # Log any exceptions that may occur during execution
         logging.error("Failed to fill gaps in mac_addresses: {}".format(e))
 
 
@@ -212,7 +220,7 @@ def count_and_delete_old_data():
                 conn,
                 params=(str(count_cutoff),),
             )
-        print("{} counts ✅ ".format(len(counts)), end="")
+        print("({} counts) ✅ ".format(len(counts)), end="")
     except Exception as e:
         logging.error("Failed to count mac_addresses: {}".format(e))
         print("❌ ", end="")
@@ -223,7 +231,7 @@ def count_and_delete_old_data():
             for index, row in counts.iterrows():
                 cursor.execute(
                     """
-                    INSERT OR IGNORE INTO mac_counts (timestamp, count)
+                    INSERT OR REPLACE INTO mac_counts (timestamp, count)
                     VALUES (?, ?)
                 """,
                     (row["timestamp"], row["count"]),
@@ -238,16 +246,12 @@ def count_and_delete_old_data():
         with sqlite3.connect(DATABASE) as conn:
             cursor = conn.cursor()
             cursor.execute(
-                "SELECT COUNT(*) FROM mac_addresses WHERE timestamp < ?",
-                (str(delete_cutoff),),
-            )
-            count_del = cursor.fetchone()[0]
-            print("{} ".format(count_del), end="")
-            logging.info("Deleted {} old entries".format(count_del))
-
-            conn.execute(
                 "DELETE FROM mac_addresses WHERE timestamp < ?", (str(delete_cutoff),)
             )
+            count_del = cursor.rowcount
+            print("({} old) ".format(count_del), end="")
+            logging.info("Deleted ({}) old entries".format(count_del))
+
         print("✅ ", end="")
 
     except Exception as e:
@@ -267,7 +271,9 @@ def delete_pre_2000_entries():
                 "DELETE FROM mac_counts WHERE strftime('%Y', timestamp) < '2000'"
             )
             deleted_entries = cursor.rowcount
-            print(deleted_entries, end="")
+            if deleted_entries > 0:
+                print("({} <2000 counts)".format(deleted_entries), end="")
+                logging.info("({} <2000 counts)".format(deleted_entries))
     except Exception as e:
         logging.error("Failed to delete pre-2000 entries from count.db: {}".format(e))
         print("❌")
