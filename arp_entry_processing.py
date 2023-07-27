@@ -250,10 +250,10 @@ def count_and_delete_old_data():
             for index, row in counts.iterrows():
                 cursor.execute(
                     """
-                    INSERT OR REPLACE INTO mac_counts (timestamp, count)
+                    INSERT OR REPLACE INTO mac_counts (timestamp, count, generation_method)
                     VALUES (?, ?)
                 """,
-                    (row["timestamp"], row["count"]),
+                    (row["timestamp"], row["count"], "original"),
                 )
             conn.commit()
         print("✅ ", end="")
