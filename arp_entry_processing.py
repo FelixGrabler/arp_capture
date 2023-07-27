@@ -133,6 +133,7 @@ def process_pcap_file(filename):
                 "INSERT OR IGNORE INTO mac_addresses (timestamp, address, is_original) VALUES (?, ?, ?)",
                 [(str(timestamp), address, 1) for address in mac_addresses],  # Mark original entries as 1
             )
+            print("({} original) ".format(cursor.rowcount), end="")
         
         # Fill entries for the next 1.5 hours
         for i in range(1, 4):
@@ -141,6 +142,7 @@ def process_pcap_file(filename):
                 "INSERT OR IGNORE INTO mac_addresses (timestamp, address, is_original) VALUES (?, ?, ?)",
                 [(str(filled_timestamp), address, 0) for address in mac_addresses],  # Mark filled entries as 0
             )
+            print("({} fake) ".format(cursor.rowcount), end="")
 
     # remove file
     try:
@@ -353,6 +355,9 @@ def main():
     """
     Main function for the script.
     """
+    logging.info()
+    logging.info("Starting new execution at {}".format(datetime.now()))
+
     try:
         print("initialize_db ", end="")
         initialize_db()
