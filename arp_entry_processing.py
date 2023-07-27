@@ -355,7 +355,7 @@ def main():
     """
     Main function for the script.
     """
-    logging.info()
+    logging.info("")
     logging.info("Starting new execution at {}".format(datetime.now()))
 
     try:
