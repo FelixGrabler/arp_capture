@@ -311,9 +311,6 @@ def fill_gaps_in_count_db():
                 parse_dates=["timestamp"],
             )
 
-        # Resample to 30-minute intervals
-        df = df.resample("30T").asfreq()
-
         # Fill gaps with linear interpolation if less than 2 hours, then with data from one week ago, then one day ago, then linear interpolation
         for i, row in df.iterrows():
             if pd.isnull(row["count"]):
@@ -371,13 +368,13 @@ def main():
         logging.error("Failed to process pcap files: {}".format(e))
         print("❌")
 
-    try:
-        print("filling gaps ", end="")
-        fill_gaps()
-        print("✅")
-    except Exception as e:
-        logging.error("Failed to fill gaps in mac_addresses: {}".format(e))
-        print("❌")
+    # try:
+    #     print("filling gaps ", end="")
+    #     fill_gaps()
+    #     print("✅")
+    # except Exception as e:
+    #     logging.error("Failed to fill gaps in mac_addresses: {}".format(e))
+    #     print("❌")
 
     try:
         print("Deleting pre-2000 entries: ", end="")
