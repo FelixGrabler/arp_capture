@@ -145,7 +145,7 @@ def process_pcap_file(filename):
     # remove file
     try:
         os.remove(filename)
-        logging.info("{} ({} MACs) ({} packets)".format(filename, len(mac_addresses), len(packets)))
+        logging.info("{} ({} MACs, {} packets)".format(filename, len(mac_addresses), len(packets)))
         print(" ✅ ({} MACs) ({} packets)".format(len(mac_addresses), len(packets)))
     except Exception as e:
         logging.error("Failed to delete processed file {}: {}".format(filename, e))
@@ -179,7 +179,8 @@ def fill_gaps():
     try:
         with sqlite3.connect(DATABASE) as conn:
             # Use SQL to fill gaps in mac.db that are <2h
-            conn.execute(
+            cursor = conn.cursor()
+            cursor.execute(
                 """
                 INSERT OR IGNORE INTO mac_addresses (timestamp, address)
                 SELECT
@@ -206,6 +207,9 @@ def fill_gaps():
                     )
                 """
             )
+            print("({})".format(cursor.rowcount), end="")
+            logging.info("mac.db fillings: {}".format(cursor.rowcount))
+
     except Exception as e:
         # Log any exceptions that may occur during execution
         logging.error("Failed to fill gaps in mac_addresses: {}".format(e))
