@@ -49,6 +49,7 @@ def initialize_db():
                 CREATE TABLE IF NOT EXISTS mac_addresses (
                     timestamp TEXT,
                     address TEXT,
+                    is_original INTEGER,  # New column to mark if the entry is original
                     PRIMARY KEY (timestamp, address)
                 )
             """
@@ -109,6 +110,10 @@ def process_pcap_file(filename):
     print(filename, end="")
     timestamp = extract_timestamp(filename)
 
+    # Ignore file if timestamp is before 2020
+    if timestamp.year < 2020:
+        return
+
     # read file content
     try:
         packets = rdpcap(filename)
@@ -125,8 +130,16 @@ def process_pcap_file(filename):
         with sqlite3.connect(DATABASE) as conn:
             cursor = conn.cursor()
             cursor.executemany(
-                "INSERT OR IGNORE INTO mac_addresses (timestamp, address) VALUES (?, ?)",
-                [(str(timestamp), address) for address in mac_addresses],
+                "INSERT OR IGNORE INTO mac_addresses (timestamp, address, is_original) VALUES (?, ?, ?)",
+                [(str(timestamp), address, 1) for address in mac_addresses],  # Mark original entries as 1
+            )
+        
+        # Fill entries for the next 1.5 hours
+        for i in range(1, 4):
+            filled_timestamp = timestamp + timedelta(minutes=i*30)
+            cursor.executemany(
+                "INSERT OR IGNORE INTO mac_addresses (timestamp, address, is_original) VALUES (?, ?, ?)",
+                [(str(filled_timestamp), address, 0) for address in mac_addresses],  # Mark filled entries as 0
             )
 
     # remove file
