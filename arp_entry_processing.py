@@ -135,14 +135,14 @@ def process_pcap_file(filename):
             )
             print("({} original) ".format(cursor.rowcount), end="")
         
-        # Fill entries for the next 1.5 hours
-        for i in range(1, 4):
-            filled_timestamp = timestamp + timedelta(minutes=i*30)
-            cursor.executemany(
-                "INSERT OR IGNORE INTO mac_addresses (timestamp, address, is_original) VALUES (?, ?, ?)",
-                [(str(filled_timestamp), address, 0) for address in mac_addresses],  # Mark filled entries as 0
-            )
-            print("({} fake) ".format(cursor.rowcount), end="")
+            # Fill entries for the next 1.5 hours
+            for i in range(1, 4):
+                filled_timestamp = timestamp + timedelta(minutes=i*30)
+                cursor.executemany(
+                    "INSERT OR IGNORE INTO mac_addresses (timestamp, address, is_original) VALUES (?, ?, ?)",
+                    [(str(filled_timestamp), address, 0) for address in mac_addresses],  # Mark filled entries as 0
+                )
+                print("({} fake) ".format(cursor.rowcount), end="")
 
     # remove file
     try:
