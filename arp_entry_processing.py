@@ -49,7 +49,7 @@ def initialize_db():
                 CREATE TABLE IF NOT EXISTS mac_addresses (
                     timestamp TEXT,
                     address TEXT,
-                    is_original INTEGER,  # New column to mark if the entry is original
+                    is_original INTEGER,
                     PRIMARY KEY (timestamp, address)
                 )
             """
