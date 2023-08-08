@@ -60,21 +60,13 @@ def initialize_db():
 
     try:
         with sqlite3.connect(COUNT_DATABASE) as conn:
-            # Step 1: Create the table without the primary key
             conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS mac_counts (
-                    timestamp TEXT,
+                    timestamp TEXT PRIMARY KEY,
                     count INTEGER,
                     generation_method TEXT
                 );
-                """
-            )
-
-            # Step 2: Alter the table to set the primary key
-            conn.execute(
-                """
-                ALTER TABLE mac_counts ADD PRIMARY KEY (timestamp);
                 """
             )
     except Exception as e:
@@ -368,6 +360,8 @@ def main():
         print("✅")
     except Exception as e:
         print("❌")
+
+    exit()
 
     try:
         process_pcap_files()
