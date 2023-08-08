@@ -60,14 +60,22 @@ def initialize_db():
 
     try:
         with sqlite3.connect(COUNT_DATABASE) as conn:
+            # Step 1: Create the table without the primary key
             conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS mac_counts (
-                    timestamp TEXT PRIMARY KEY,
+                    timestamp TEXT,
                     count INTEGER,
                     generation_method TEXT
                 );
-            """
+                """
+            )
+
+            # Step 2: Alter the table to set the primary key
+            conn.execute(
+                """
+                ALTER TABLE mac_counts ADD PRIMARY KEY (timestamp);
+                """
             )
     except Exception as e:
         logging.error("Failed to initialize mac_counts database: {}".format(e))
