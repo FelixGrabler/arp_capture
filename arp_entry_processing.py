@@ -251,7 +251,7 @@ def count_and_delete_old_data():
                 cursor.execute(
                     """
                     INSERT OR REPLACE INTO mac_counts (timestamp, count, generation_method)
-                    VALUES (?, ?)
+                    VALUES (?, ?, ?)
                 """,
                     (row["timestamp"], row["count"], "original"),
                 )
