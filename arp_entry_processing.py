@@ -63,10 +63,9 @@ def initialize_db():
             conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS mac_counts (
-                    timestamp TEXT,
+                    timestamp TEXT PRIMARY KEY,
                     count INTEGER,
-                    generation_method TEXT,
-                    PRIMARY KEY (timestamp)
+                    generation_method TEXT
                 );
             """
             )
