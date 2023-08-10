@@ -367,8 +367,6 @@ def main():
     except Exception as e:
         logging.error("Failed to process pcap files: {}".format(e))
         print("❌")
-    
-    exit()
 
     # try:
     #     print("filling gaps ", end="")
@@ -385,6 +383,8 @@ def main():
     except Exception as e:
         logging.error("Failed to delete pre-2000 entries from count.db: {}".format(e))
         print("❌")
+    
+    exit()
 
     if not debug:
         try:
