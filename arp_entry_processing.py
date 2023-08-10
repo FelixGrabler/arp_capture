@@ -261,6 +261,9 @@ def count_and_delete_old_data():
         logging.error("Failed to write counts to mac_counts database: {}".format(e))
         print("❌ ", end="")
 
+    print("exit()")
+    exit()
+
     try:
         with sqlite3.connect(DATABASE) as conn:
             cursor = conn.cursor()
@@ -383,8 +386,6 @@ def main():
     except Exception as e:
         logging.error("Failed to delete pre-2000 entries from count.db: {}".format(e))
         print("❌")
-    
-    exit()
 
     if not debug:
         try:
