@@ -62,7 +62,7 @@ def initialize_db():
         with sqlite3.connect(COUNT_DATABASE) as conn:
             conn.execute(
                 """
-                CREATE TABLE IF NOT EXISTS mac_counts (
+                CREATE TABLE mac_counts (
                     timestamp TEXT PRIMARY KEY,
                     count INTEGER,
                     generation_method TEXT
@@ -360,8 +360,6 @@ def main():
         print("✅")
     except Exception as e:
         print("❌")
-
-    exit()
 
     try:
         process_pcap_files()
