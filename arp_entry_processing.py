@@ -42,21 +42,21 @@ def initialize_db():
     """
     Initializes the databases used for storing mac addresses and their counts.
     """
-    # try:
-    #     with sqlite3.connect(DATABASE) as conn:
-    #         conn.execute(
-    #             """
-    #             CREATE TABLE IF NOT EXISTS mac_addresses (
-    #                 timestamp TEXT,
-    #                 address TEXT,
-    #                 is_original INTEGER,
-    #                 PRIMARY KEY (timestamp, address)
-    #             )
-    #         """
-    #         )
-    # except Exception as e:
-    #     logging.error("Failed to initialize mac_addresses database: {}".format(e))
-    #     raise e
+    try:
+        with sqlite3.connect(DATABASE) as conn:
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS mac_addresses (
+                    timestamp TEXT,
+                    address TEXT,
+                    is_original INTEGER,
+                    PRIMARY KEY (timestamp, address)
+                )
+            """
+            )
+    except Exception as e:
+        logging.error("Failed to initialize mac_addresses database: {}".format(e))
+        raise e
 
     try:
         with sqlite3.connect(COUNT_DATABASE) as conn:
