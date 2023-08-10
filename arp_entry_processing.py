@@ -342,13 +342,23 @@ def fill_gaps_in_count_db():
         df["generation_method"].fillna("no data", inplace=True)
 
         # Write the filled data back to the database
-        df.to_sql("mac_counts", conn, if_exists="replace")
+        # df.to_sql("mac_counts", conn, if_exists="replace")  # causes the PK to vanish
+
+        # Connect to the database
+        with sqlite3.connect(COUNT_DATABASE) as conn:
+            cursor = conn.cursor()
+
+            # Insert data row by row, but ignore any conflicts
+            for i, row in df.iterrows():
+                cursor.execute("""
+                    INSERT OR IGNORE INTO mac_counts(timestamp, count, generation_method) 
+                    VALUES (?, ?, ?)
+                """, (i, row["count"], row["generation_method"]))
+
+            conn.commit()
 
     except Exception as e:
         logging.error("Failed to fill gaps in count data: {}".format(e))
-
-    print("exit()")
-    exit()
 
 
 def main():
