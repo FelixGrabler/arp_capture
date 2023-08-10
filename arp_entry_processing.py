@@ -157,6 +157,7 @@ def process_pcap_files():
     """
     Processes all pcap files in the specified directory.
     """
+
     pcap_files = sorted(
         filename
         for filename in os.listdir(PCAP_DIR)
@@ -366,6 +367,8 @@ def main():
     except Exception as e:
         logging.error("Failed to process pcap files: {}".format(e))
         print("❌")
+    
+    exit()
 
     # try:
     #     print("filling gaps ", end="")
