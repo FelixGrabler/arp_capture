@@ -277,9 +277,6 @@ def count_and_delete_old_data():
         logging.error("Failed to delete old data from mac_addresses: {}".format(e))
         print("❌ ", end="")
 
-    print("exit()")
-    exit()
-
 
 def delete_pre_2000_entries():
     """
@@ -349,6 +346,9 @@ def fill_gaps_in_count_db():
 
     except Exception as e:
         logging.error("Failed to fill gaps in count data: {}".format(e))
+
+    print("exit()")
+    exit()
 
 
 def main():
