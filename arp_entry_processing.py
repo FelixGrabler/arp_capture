@@ -361,8 +361,6 @@ def main():
     except Exception as e:
         print("❌")
 
-    exit()
-
     try:
         process_pcap_files()
     except Exception as e:
