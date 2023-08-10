@@ -350,10 +350,11 @@ def fill_gaps_in_count_db():
 
             # Insert data row by row, but ignore any conflicts
             for i, row in df.iterrows():
+                timestamp_str = i.isoformat()
                 cursor.execute("""
                     INSERT OR IGNORE INTO mac_counts(timestamp, count, generation_method) 
                     VALUES (?, ?, ?)
-                """, (i, row["count"], row["generation_method"]))
+                """, (timestamp_str, row["count"], row["generation_method"]))
 
             conn.commit()
 
