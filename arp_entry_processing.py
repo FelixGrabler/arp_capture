@@ -47,7 +47,7 @@ def initialize_db():
             conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS mac_addresses (
-                    timestamp TEXT,
+                    timestamp DATETIME,
                     address TEXT,
                     is_original INTEGER,
                     PRIMARY KEY (timestamp, address)
@@ -63,7 +63,7 @@ def initialize_db():
             conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS mac_counts (
-                    timestamp TEXT PRIMARY KEY,
+                    timestamp DATETIME PRIMARY KEY,
                     count INTEGER,
                     generation_method TEXT
                 )
@@ -130,7 +130,7 @@ def process_pcap_file(filename):
             cursor = conn.cursor()
             cursor.executemany(
                 "INSERT OR REPLACE INTO mac_addresses (timestamp, address, is_original) VALUES (?, ?, ?)",
-                [(str(timestamp), address, 1) for address in mac_addresses],  # Mark original entries as 1
+                [(timestamp.isoformat(), address, 1) for address in mac_addresses],  # Mark original entries as 1
             )
             print(" ({} original) ".format(cursor.rowcount), end="")
         
@@ -139,7 +139,7 @@ def process_pcap_file(filename):
                 filled_timestamp = timestamp + timedelta(minutes=i*30)
                 cursor.executemany(
                     "INSERT OR IGNORE INTO mac_addresses (timestamp, address, is_original) VALUES (?, ?, ?)",
-                    [(str(filled_timestamp), address, 0) for address in mac_addresses],  # Mark filled entries as 0
+                    [(filled_timestamp.isoformat(), address, 0) for address in mac_addresses],  # Mark filled entries as 0
                 )
                 print("({} fake) ".format(cursor.rowcount), end="")
 
