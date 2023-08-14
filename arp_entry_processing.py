@@ -237,7 +237,7 @@ def count_and_delete_old_data():
                 GROUP BY timestamp
                 """,
                 conn,
-                params=(str(count_cutoff),),
+                params=(count_cutoff.isoformat(),),
             )
         print("({} counts) ✅ ".format(len(counts)), end="")
     except Exception as e:
@@ -265,7 +265,7 @@ def count_and_delete_old_data():
         with sqlite3.connect(DATABASE) as conn:
             cursor = conn.cursor()
             cursor.execute(
-                "DELETE FROM mac_addresses WHERE timestamp < ?", (str(delete_cutoff),)
+                "DELETE FROM mac_addresses WHERE timestamp < ?", (delete_cutoff.isoformat(),)
             )
             count_del = cursor.rowcount
             print("({} old) ".format(count_del), end="")
