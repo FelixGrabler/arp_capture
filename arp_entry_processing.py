@@ -233,11 +233,9 @@ def count_and_delete_old_data():
                     timestamp,
                     COUNT(address) as count
                 FROM mac_addresses
-                WHERE timestamp < ?
                 GROUP BY timestamp
                 """,
                 conn,
-                params=(count_cutoff.isoformat(),),
             )
         print("({} counts) ✅ ".format(len(counts)), end="")
     except Exception as e:
