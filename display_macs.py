@@ -1,3 +1,8 @@
+import sqlite3
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+
 # Connect to the database
 conn = sqlite3.connect('mac.db')
 cursor = conn.cursor()
@@ -19,12 +24,10 @@ unique_timestamps = df['timestamp'].unique()
 
 matrix = np.zeros((len(unique_addresses), len(unique_timestamps)))
 
-for i, address in enumerate(unique_addresses):
-    for j, timestamp in enumerate(unique_timestamps):
-        subset = df[(df['address'] == address) & (df['timestamp'] == timestamp)]
-        if not subset.empty:
-            # If is_original is 1, set cell value to 2; otherwise, set to 1
-            matrix[i, j] = 2 if subset['is_original'].iloc[0] == 1 else 1
+for _, row in df.iterrows():
+    i = np.where(unique_addresses == row['address'])[0][0]
+    j = np.where(unique_timestamps == row['timestamp'])[0][0]
+    matrix[i, j] = 2 if row['is_original'] == 1 else 1
 
 # Plotting the heatmap
 plt.figure(figsize=(14, 8))
