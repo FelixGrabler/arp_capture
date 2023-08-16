@@ -18,16 +18,17 @@ conn.close()
 # Convert the data into a pandas DataFrame
 df = pd.DataFrame(data, columns=['timestamp', 'address', 'is_original'])
 
-# Create a matrix with rows as MAC addresses and columns as timestamps
-unique_addresses = df['address'].unique()
-unique_timestamps = df['timestamp'].unique()
+# Sorted unique addresses and timestamps
+unique_addresses = sorted(df['address'].unique())
+unique_timestamps = sorted(df['timestamp'].unique())
 
 matrix = np.zeros((len(unique_addresses), len(unique_timestamps)))
 
 for _, row in df.iterrows():
-    i = np.where(unique_addresses == row['address'])[0][0]
-    j = np.where(unique_timestamps == row['timestamp'])[0][0]
+    i = unique_addresses.index(row['address'])
+    j = unique_timestamps.index(row['timestamp'])
     matrix[i, j] = 2 if row['is_original'] == 1 else 1
+
 
 # Plotting the heatmap
 plt.figure(figsize=(14, 8))
