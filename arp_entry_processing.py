@@ -130,23 +130,32 @@ def process_pcap_file(filename):
             cursor = conn.cursor()
             cursor.executemany(
                 "INSERT OR REPLACE INTO mac_addresses (timestamp, address, is_original) VALUES (?, ?, ?)",
-                [(timestamp.isoformat(), address, 1) for address in mac_addresses],  # Mark original entries as 1
+                [
+                    (timestamp.isoformat(), address, 1) for address in mac_addresses
+                ],  # Mark original entries as 1
             )
             print(" ({} original) ".format(cursor.rowcount), end="")
-        
+
             # Fill entries for the next 1.5 hours
             for i in range(1, 4):
-                filled_timestamp = timestamp + timedelta(minutes=i*30)
+                filled_timestamp = timestamp + timedelta(minutes=i * 30)
                 cursor.executemany(
                     "INSERT OR IGNORE INTO mac_addresses (timestamp, address, is_original) VALUES (?, ?, ?)",
-                    [(filled_timestamp.isoformat(), address, 0) for address in mac_addresses],  # Mark filled entries as 0
+                    [
+                        (filled_timestamp.isoformat(), address, 0)
+                        for address in mac_addresses
+                    ],  # Mark filled entries as 0
                 )
                 print("({} fake) ".format(cursor.rowcount), end="")
 
     # remove file
     try:
         os.remove(filename)
-        logging.info("{} ({} MACs, {} packets)".format(filename, len(mac_addresses), len(packets)))
+        logging.info(
+            "{} ({} MACs, {} packets)".format(
+                filename, len(mac_addresses), len(packets)
+            )
+        )
         print(" ✅ ({} MACs, {} packets)".format(len(mac_addresses), len(packets)))
     except Exception as e:
         logging.error("Failed to delete processed file {}: {}".format(filename, e))
@@ -159,9 +168,7 @@ def process_pcap_files():
     """
 
     pcap_files = sorted(
-        filename
-        for filename in os.listdir(PCAP_DIR)
-        if filename.endswith(".pcap")
+        filename for filename in os.listdir(PCAP_DIR) if filename.endswith(".pcap")
     )
 
     # Exclude the last file because it is still written to
@@ -263,7 +270,8 @@ def count_and_delete_old_data():
         with sqlite3.connect(DATABASE) as conn:
             cursor = conn.cursor()
             cursor.execute(
-                "DELETE FROM mac_addresses WHERE timestamp < ?", (delete_cutoff.isoformat(),)
+                "DELETE FROM mac_addresses WHERE timestamp < ?",
+                (delete_cutoff.isoformat(),),
             )
             count_del = cursor.rowcount
             print("({} old) ".format(count_del), end="")
@@ -309,27 +317,33 @@ def fill_gaps_in_count_db():
                 parse_dates=["timestamp"],
             )
 
+        print("Starting filling")
         # Fill gaps with linear interpolation if less than 2 hours, then with data from one week ago, then one day ago, then linear interpolation
         for i, row in df.iterrows():
             if pd.isnull(row["count"]):
                 before = df[df.index < i].last_valid_index()
                 after = df[df.index > i].first_valid_index()
                 if after and before and after - before <= pd.Timedelta(hours=2):
+                    print("Small gap")
                     df.loc[i, "count"] = df.loc[before, "count"] + (
                         df.loc[after, "count"] - df.loc[before, "count"]
                     ) / ((after - before) / pd.Timedelta(minutes=30))
                     df.loc[i, "generation_method"] = "linear"
                 else:
+                    print("big gap")
                     week_ago = i - pd.DateOffset(weeks=1)
                     day_ago = i - pd.DateOffset(days=1)
 
                     if week_ago in df.index and pd.notnull(df.loc[week_ago, "count"]):
+                        print("Week")
                         df.loc[i, "count"] = df.loc[week_ago, "count"]
                         df.loc[i, "generation_method"] = "week"
                     elif day_ago in df.index and pd.notnull(df.loc[day_ago, "count"]):
+                        print("Day")
                         df.loc[i, "count"] = df.loc[day_ago, "count"]
                         df.loc[i, "generation_method"] = "day"
                     else:
+                        print("Linear")
                         df.loc[i, "count"] = df.loc[before, "count"] + (
                             df.loc[after, "count"] - df.loc[before, "count"]
                         ) / ((after - before) / pd.Timedelta(minutes=30))
@@ -338,6 +352,8 @@ def fill_gaps_in_count_db():
         # Fill any remaining NaNs with 0
         df["count"].fillna(0, inplace=True)
         df["generation_method"].fillna("no data", inplace=True)
+
+        print("Done filling")
 
         # Write the filled data back to the database
         # df.to_sql("mac_counts", conn, if_exists="replace")  # causes the PK to vanish
@@ -349,10 +365,13 @@ def fill_gaps_in_count_db():
             # Insert data row by row, but ignore any conflicts
             for i, row in df.iterrows():
                 timestamp_str = i.isoformat()
-                cursor.execute("""
+                cursor.execute(
+                    """
                     INSERT OR IGNORE INTO mac_counts(timestamp, count, generation_method) 
                     VALUES (?, ?, ?)
-                """, (timestamp_str, row["count"], row["generation_method"]))
+                """,
+                    (timestamp_str, row["count"], row["generation_method"]),
+                )
 
             conn.commit()
 
