@@ -316,6 +316,12 @@ def fill_gaps_in_count_db():
                 index_col="timestamp",
                 parse_dates=["timestamp"],
             )
+        
+        # Creating a full range of timestamps
+        full_timestamp_range = pd.date_range(start=df.index.min(), end=df.index.max(), freq='30T')
+
+        # Setting this range as the new index and reindexing the DataFrame
+        df = df.reindex(full_timestamp_range)
 
         print("Starting filling")
         # Fill gaps with linear interpolation if less than 2 hours, then with data from one week ago, then one day ago, then linear interpolation
