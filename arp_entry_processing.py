@@ -320,9 +320,11 @@ def fill_gaps_in_count_db():
         print("Starting filling")
         # Fill gaps with linear interpolation if less than 2 hours, then with data from one week ago, then one day ago, then linear interpolation
         for i, row in df.iterrows():
+            print("new row")
             if pd.isnull(row["count"]):
                 before = df[df.index < i].last_valid_index()
                 after = df[df.index > i].first_valid_index()
+                print("null, before " + str(before) + ", after " + str(after) + "")
                 if after and before and after - before <= pd.Timedelta(hours=2):
                     print("Small gap")
                     df.loc[i, "count"] = df.loc[before, "count"] + (
